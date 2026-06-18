@@ -1,0 +1,994 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Τα Φυτά Μας</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,300;0,500;1,300&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:        #1A2318;
+    --bg2:       #222E20;
+    --bg3:       #2C3B29;
+    --text:      #E8F0E4;
+    --text2:     #A8BCA4;
+    --text3:     #6B8068;
+    --green:     #7CB87A;
+    --green-dim: #4A7048;
+    --sand:      #C4A882;
+    --red:       #D4654A;
+    --red-dim:   #7A3020;
+    --border:    #2E3F2B;
+    --radius:    14px;
+    --font-d:    'Fraunces', Georgia, serif;
+    --font-b:    'Inter', system-ui, sans-serif;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-b);
+    min-height: 100vh;
+    font-size: 15px;
+    line-height: 1.5;
+  }
+
+  /* ── LOADING OVERLAY ── */
+  .loading-overlay {
+    position: fixed; inset: 0;
+    background: var(--bg);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 300;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .loading-overlay.hidden { display: none; }
+  .loading-spinner {
+    width: 36px; height: 36px;
+    border: 3px solid var(--border);
+    border-top-color: var(--green);
+    border-radius: 50%;
+    animation: spin .8s linear infinite;
+  }
+  .loading-text { font-size: 13px; color: var(--text3); }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── HEADER ── */
+  header {
+    padding: 28px 24px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .header-left h1 {
+    font-family: var(--font-d);
+    font-weight: 300;
+    font-size: clamp(24px, 5vw, 34px);
+    letter-spacing: -0.5px;
+    line-height: 1.1;
+  }
+  .header-left h1 em { font-style: italic; color: var(--green); }
+  .season-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 4px 12px;
+    font-size: 12px;
+    color: var(--text2);
+    margin-top: 6px;
+    font-weight: 500;
+    letter-spacing: 0.3px;
+  }
+  .season-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); }
+  .header-right { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+  .user-select { display: flex; gap: 6px; }
+  .user-btn {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    color: var(--text2);
+    border-radius: 20px;
+    padding: 5px 14px;
+    font-size: 12px;
+    font-family: var(--font-b);
+    cursor: pointer;
+    transition: all .2s;
+    font-weight: 500;
+  }
+  .user-btn.active { background: var(--green-dim); border-color: var(--green); color: var(--text); }
+  .user-btn:hover:not(.active) { border-color: var(--green-dim); color: var(--text); }
+  .date-label { font-size: 11px; color: var(--text3); letter-spacing: 0.5px; }
+  .hh-label {
+    font-size: 10px;
+    color: var(--text3);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: color .2s;
+  }
+  .hh-label:hover { color: var(--text2); }
+
+  /* ── STATS BAR ── */
+  .stats-bar { display: flex; gap: 0; border-bottom: 1px solid var(--border); }
+  .stat {
+    flex: 1; padding: 14px 20px;
+    border-right: 1px solid var(--border);
+    display: flex; flex-direction: column; gap: 2px;
+  }
+  .stat:last-child { border-right: none; }
+  .stat-num { font-family: var(--font-d); font-size: 22px; font-weight: 500; line-height: 1; }
+  .stat-num.red   { color: var(--red); }
+  .stat-num.green { color: var(--green); }
+  .stat-num.sand  { color: var(--sand); }
+  .stat-label { font-size: 11px; color: var(--text3); letter-spacing: 0.4px; }
+
+  /* ── MAIN ── */
+  main { padding: 24px; }
+  .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  .section-title { font-size: 11px; letter-spacing: 1.2px; text-transform: uppercase; color: var(--text3); font-weight: 500; }
+  .add-btn {
+    background: none;
+    border: 1px dashed var(--green-dim);
+    color: var(--green);
+    border-radius: 20px;
+    padding: 5px 14px;
+    font-size: 12px;
+    font-family: var(--font-b);
+    cursor: pointer;
+    transition: all .2s;
+    font-weight: 500;
+  }
+  .add-btn:hover { background: var(--bg3); border-style: solid; }
+
+  /* ── PLANT GRID ── */
+  .plant-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 16px;
+    margin-bottom: 32px;
+  }
+  .plant-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px;
+    transition: border-color .2s, opacity .3s;
+    position: relative;
+    overflow: hidden;
+  }
+  .plant-card.overdue   { border-color: var(--red-dim); }
+  .plant-card.due-today { border-color: var(--sand); }
+  .plant-card.ok        { border-color: var(--border); }
+  .plant-card:hover     { border-color: var(--green-dim); }
+  .plant-card.saving    { opacity: .6; pointer-events: none; }
+
+  .card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+  .card-info { flex: 1; min-width: 0; }
+  .plant-name-gr { font-family: var(--font-d); font-size: 17px; font-weight: 300; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .plant-name-en { font-size: 11px; color: var(--text3); margin-top: 1px; font-style: italic; }
+
+  /* ── SOIL CIRCLE ── */
+  .soil-wrap { flex-shrink: 0; position: relative; width: 48px; height: 48px; }
+  .soil-svg  { width: 48px; height: 48px; }
+  .soil-pct  { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 600; color: var(--text); }
+
+  /* ── STATUS CHIP ── */
+  .status-row { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+  .status-chip { font-size: 11px; font-weight: 500; padding: 3px 10px; border-radius: 20px; letter-spacing: 0.3px; }
+  .chip-overdue { background: var(--red-dim); color: #F0A090; }
+  .chip-today   { background: #4A3A10; color: var(--sand); }
+  .chip-ok      { background: #243824; color: var(--green); }
+  .last-watered { font-size: 11px; color: var(--text3); margin-left: auto; }
+
+  /* ── WHO WATERED ── */
+  .who-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 10px;
+    color: var(--text3);
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 2px 8px;
+  }
+  .who-dot { width: 5px; height: 5px; border-radius: 50%; }
+  .who-dot.v { background: var(--green); }
+  .who-dot.s { background: var(--sand); }
+
+  /* ── WATERING INFO ── */
+  .watering-info {
+    background: var(--bg3);
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-bottom: 14px;
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .winfo-item { display: flex; flex-direction: column; gap: 1px; }
+  .winfo-label { font-size: 10px; color: var(--text3); letter-spacing: 0.4px; }
+  .winfo-val   { font-size: 13px; font-weight: 500; color: var(--text); }
+
+  /* ── 7-DAY STRIP ── */
+  .strip-label { font-size: 10px; color: var(--text3); letter-spacing: 0.4px; margin-bottom: 6px; }
+  .day-strip   { display: flex; gap: 4px; margin-bottom: 14px; }
+  .day-box {
+    flex: 1; height: 36px;
+    border-radius: 5px;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 2px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    font-size: 9px; color: var(--text3);
+    cursor: default;
+    transition: background .15s;
+    position: relative;
+  }
+  .day-box.watered { background: var(--green-dim); border-color: var(--green); }
+  .day-box.watered .day-dot { background: var(--green); }
+  .day-box.watered-by-s { background: #4A3A10; border-color: var(--sand); }
+  .day-box.watered-by-s .day-dot { background: var(--sand); }
+  .day-dot  { width: 5px; height: 5px; border-radius: 50%; background: transparent; }
+  .day-box.today-box { border-color: var(--sand); color: var(--sand); }
+  .day-lbl  { font-size: 8.5px; line-height: 1; }
+  .day-who  { font-size: 7px; color: var(--text3); line-height: 1; }
+  .day-box.watered .day-who  { color: var(--green); }
+  .day-box.watered-by-s .day-who { color: var(--sand); }
+
+  /* ── WATER BUTTON ── */
+  .water-btn {
+    width: 100%; padding: 10px;
+    border-radius: 8px; border: none;
+    font-family: var(--font-b); font-size: 13px; font-weight: 500;
+    cursor: pointer; transition: all .2s; letter-spacing: 0.2px;
+  }
+  .water-btn.needs-water  { background: var(--green-dim); color: var(--text); border: 1px solid var(--green); }
+  .water-btn.needs-water:hover { background: #3A6038; }
+  .water-btn.watered-today { background: var(--bg3); color: var(--green); border: 1px solid var(--green-dim); cursor: default; }
+  .water-btn.not-due      { background: var(--bg3); color: var(--text3); border: 1px solid var(--border); cursor: default; }
+
+  /* ── REMOVE BTN ── */
+  .remove-btn {
+    position: absolute; top: 12px; right: 12px;
+    background: none; border: none; color: var(--text3);
+    cursor: pointer; font-size: 16px; line-height: 1;
+    opacity: 0; transition: opacity .2s, color .2s;
+    padding: 2px 5px;
+  }
+  .plant-card:hover .remove-btn { opacity: 1; }
+  .remove-btn:hover { color: var(--red); }
+
+  /* ── TOAST ── */
+  .toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px);
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: 24px; padding: 10px 20px;
+    font-size: 13px; color: var(--text);
+    transition: transform .3s ease, opacity .3s;
+    opacity: 0; z-index: 500; white-space: nowrap;
+    box-shadow: 0 4px 20px rgba(0,0,0,.4);
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+  .toast.success { border-color: var(--green-dim); color: var(--green); }
+  .toast.error   { border-color: var(--red-dim); color: var(--red); }
+
+  /* ── MODAL ── */
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(10,15,10,.75);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 100; padding: 20px;
+    backdrop-filter: blur(4px);
+  }
+  .modal-overlay.hidden { display: none; }
+  .modal {
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 28px;
+    width: 100%; max-width: 480px; max-height: 80vh; overflow-y: auto;
+  }
+  .modal h2 { font-family: var(--font-d); font-weight: 300; font-size: 22px; margin-bottom: 6px; }
+  .modal-sub { font-size: 12px; color: var(--text3); margin-bottom: 20px; }
+  .search-input {
+    width: 100%; background: var(--bg3); border: 1px solid var(--border);
+    border-radius: 8px; padding: 10px 14px; color: var(--text);
+    font-family: var(--font-b); font-size: 14px; margin-bottom: 14px;
+    outline: none; transition: border-color .2s;
+  }
+  .search-input:focus { border-color: var(--green); }
+  .search-input::placeholder { color: var(--text3); }
+  .plant-list-modal { display: flex; flex-direction: column; gap: 6px; }
+  .plant-option {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 14px; background: var(--bg3);
+    border: 1px solid var(--border); border-radius: 8px;
+    cursor: pointer; transition: border-color .2s, background .2s;
+  }
+  .plant-option:hover { border-color: var(--green-dim); background: #273325; }
+  .plant-option.already-added { opacity: .4; pointer-events: none; }
+  .po-name-gr { font-size: 14px; font-weight: 400; }
+  .po-name-en { font-size: 11px; color: var(--text3); font-style: italic; }
+  .po-tag { font-size: 10px; padding: 2px 8px; border-radius: 10px; background: var(--bg); color: var(--text3); border: 1px solid var(--border); white-space: nowrap; }
+  .modal-close { display: block; margin-top: 20px; width: 100%; padding: 10px; border-radius: 8px; background: var(--bg3); border: 1px solid var(--border); color: var(--text2); font-family: var(--font-b); font-size: 13px; cursor: pointer; }
+  .modal-close:hover { border-color: var(--green-dim); }
+
+  /* ── HOUSEHOLD CODE SCREEN ── */
+  .hh-screen {
+    position: fixed; inset: 0; background: var(--bg);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 200; padding: 24px;
+  }
+  .hh-screen.hidden { display: none; }
+  .hh-box { max-width: 380px; width: 100%; text-align: center; }
+  .hh-box h1 { font-family: var(--font-d); font-weight: 300; font-size: 32px; margin-bottom: 6px; }
+  .hh-box h1 em { font-style: italic; color: var(--green); }
+  .hh-box p { font-size: 13px; color: var(--text3); margin-bottom: 28px; line-height: 1.6; }
+  .hh-input {
+    width: 100%; background: var(--bg2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 12px 16px; color: var(--text);
+    font-family: var(--font-b); font-size: 16px; text-align: center;
+    letter-spacing: 2px; text-transform: uppercase; outline: none;
+    margin-bottom: 12px; transition: border-color .2s;
+  }
+  .hh-input:focus { border-color: var(--green); }
+  .hh-input::placeholder { letter-spacing: 0; text-transform: none; color: var(--text3); font-size: 13px; }
+  .hh-enter-btn {
+    width: 100%; padding: 12px; border-radius: 8px;
+    background: var(--green-dim); border: 1px solid var(--green);
+    color: var(--text); font-family: var(--font-b); font-size: 14px;
+    font-weight: 500; cursor: pointer; transition: background .2s;
+  }
+  .hh-enter-btn:hover { background: #3A6038; }
+  .hh-note { font-size: 11px; color: var(--text3); margin-top: 14px; }
+  .hh-error { font-size: 12px; color: var(--red); margin-top: 8px; min-height: 18px; }
+
+  /* ── EMPTY STATE ── */
+  .empty-state {
+    text-align: center; padding: 48px 20px; color: var(--text3);
+    border: 1px dashed var(--border); border-radius: var(--radius); margin-bottom: 32px;
+  }
+  .empty-state .e-icon { font-size: 36px; margin-bottom: 12px; }
+  .empty-state p { font-size: 13px; line-height: 1.7; }
+
+  @media (max-width: 500px) {
+    header { padding: 18px 16px 14px; }
+    main   { padding: 16px; }
+    .plant-grid { grid-template-columns: 1fr; }
+    .stats-bar  { flex-wrap: wrap; }
+    .stat { min-width: 50%; border-bottom: 1px solid var(--border); }
+  }
+</style>
+</head>
+<body>
+
+<!-- LOADING -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loading-spinner"></div>
+  <div class="loading-text">Φόρτωση...</div>
+</div>
+
+<!-- HOUSEHOLD CODE SCREEN -->
+<div class="hh-screen" id="hhScreen">
+  <div class="hh-box">
+    <h1>Τα <em>φυτά</em><br>μας</h1>
+    <p>Εισήγαγε τον κωδικό σπιτιού σου για να δεις<br>το κοινό σας garden.</p>
+    <input class="hh-input" id="hhInput" placeholder="π.χ. SPITI2024" maxlength="20">
+    <button class="hh-enter-btn" onclick="enterHousehold()">Είσοδος</button>
+    <div class="hh-error" id="hhError"></div>
+    <p class="hh-note">Ο ίδιος κωδικός για εσάς και τη σύζυγό σου.<br>Δεν χρειάζεται εγγραφή.</p>
+  </div>
+</div>
+
+<!-- MODAL: ADD PLANT -->
+<div class="modal-overlay hidden" id="modalOverlay">
+  <div class="modal">
+    <h2>Προσθήκη φυτού</h2>
+    <p class="modal-sub">Επέλεξε από τη λίστα</p>
+    <input class="search-input" id="searchInput" placeholder="Αναζήτηση..." oninput="filterPlants()">
+    <div class="plant-list-modal" id="plantListModal"></div>
+    <button class="modal-close" onclick="closeModal()">Κλείσιμο</button>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- HEADER -->
+<header>
+  <div class="header-left">
+    <h1>Τα <em>φυτά</em> μας</h1>
+    <div class="season-badge">
+      <span class="season-dot" id="seasonDot"></span>
+      <span id="seasonLabel">—</span>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="user-select">
+      <button class="user-btn active" id="btnVasilis" onclick="setUser('Βασίλης')">Βασίλης</button>
+      <button class="user-btn" id="btnSyzyg" onclick="setUser('Σύζυγος')">Σύζυγος</button>
+    </div>
+    <div class="date-label" id="dateLabel"></div>
+    <div class="hh-label" id="hhLabel" onclick="changeHousehold()" title="Αλλαγή κωδικού"></div>
+  </div>
+</header>
+
+<!-- STATS -->
+<div class="stats-bar">
+  <div class="stat"><div class="stat-num red"   id="statOverdue">—</div><div class="stat-label">ΚΑΘΥΣΤΕΡΗΜΕΝΑ</div></div>
+  <div class="stat"><div class="stat-num sand"  id="statToday">—</div><div class="stat-label">ΣΗΜΕΡΑ</div></div>
+  <div class="stat"><div class="stat-num green" id="statOk">—</div><div class="stat-label">ΟΚ</div></div>
+</div>
+
+<!-- MAIN -->
+<main>
+  <div class="section-header">
+    <span class="section-title">Φυτά σπιτιού</span>
+    <button class="add-btn" onclick="openModal()">+ Προσθήκη</button>
+  </div>
+  <div class="plant-grid" id="plantGrid"></div>
+</main>
+
+<script>
+// ═══════════════════════════════════════════
+// SUPABASE CONFIG
+// ═══════════════════════════════════════════
+const SB_URL = 'https://ricqmodhvfiwswxdkdlz.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJpY3Ftb2RodmZpd3N3eGRrZGx6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE3NTIzOTcsImV4cCI6MjA5NzMyODM5N30.ICYOecrPC1Birs-SMhCVHgrBUGbr0z1PM5ThIbrZv-g';
+
+async function sbFetch(path, opts={}) {
+  const res = await fetch(`${SB_URL}/rest/v1/${path}`, {
+    ...opts,
+    headers: {
+      'apikey': SB_KEY,
+      'Authorization': `Bearer ${SB_KEY}`,
+      'Content-Type': 'application/json',
+      'Prefer': opts.prefer || 'return=representation',
+      ...(opts.headers||{})
+    }
+  });
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(err);
+  }
+  const text = await res.text();
+  return text ? JSON.parse(text) : [];
+}
+
+// ═══════════════════════════════════════════
+// PLANTS DATASET — 35 Greek Houseplants
+// ═══════════════════════════════════════════
+const PLANTS_DB = [
+  { id:'pothos',      gr:'Πόθος',           en:'Pothos / Epipremnum',       diff:'Εύκολο',
+    seasons:{ summer:{days:4,ml:150}, trans:{days:6,ml:120}, winter:{days:10,ml:80} },
+    light:'Μέτριο φως', note:'Ανθεκτικό στη ξηρασία' },
+  { id:'monstera',    gr:'Μονστέρα',         en:'Monstera deliciosa',        diff:'Εύκολο',
+    seasons:{ summer:{days:5,ml:200}, trans:{days:8,ml:150}, winter:{days:12,ml:100} },
+    light:'Έμμεσο φως', note:'Μην αφήσεις το χώμα να στεγνώσει εντελώς' },
+  { id:'sanseveria',  gr:'Σανσεβέρια',       en:'Sansevieria / Snake Plant', diff:'Πολύ εύκολο',
+    seasons:{ summer:{days:10,ml:100}, trans:{days:18,ml:80}, winter:{days:25,ml:50} },
+    light:'Οποιοδήποτε', note:'Ο βασιλιάς της παραμέλησης' },
+  { id:'ficus',       gr:'Φίκος',            en:'Ficus benjamina',           diff:'Μέτριο',
+    seasons:{ summer:{days:5,ml:200}, trans:{days:8,ml:150}, winter:{days:12,ml:100} },
+    light:'Έντονο έμμεσο', note:'Μισεί τις αλλαγές θέσης' },
+  { id:'spathiphyllum',gr:'Σπαθίφυλλο',     en:'Spathiphyllum / Peace Lily',diff:'Εύκολο',
+    seasons:{ summer:{days:4,ml:180}, trans:{days:7,ml:140}, winter:{days:10,ml:100} },
+    light:'Χαμηλό-μέτριο', note:'Ρίχνει φύλλα όταν διψάει' },
+  { id:'aloe',        gr:'Αλόη',             en:'Aloe vera',                 diff:'Πολύ εύκολο',
+    seasons:{ summer:{days:12,ml:150}, trans:{days:20,ml:100}, winter:{days:30,ml:60} },
+    light:'Πολύ φωτεινό', note:'Χυμώδες — λιγότερο νερό πάντα' },
+  { id:'orchid',      gr:'Ορχιδέα',          en:'Phalaenopsis',              diff:'Μέτριο',
+    seasons:{ summer:{days:6,ml:100}, trans:{days:10,ml:80}, winter:{days:14,ml:60} },
+    light:'Έμμεσο φως', note:'Ποτίζουμε μέχρι να τρέξει από τις τρύπες' },
+  { id:'zz',          gr:'ZZ Plant',         en:'Zamioculcas zamiifolia',    diff:'Πολύ εύκολο',
+    seasons:{ summer:{days:12,ml:120}, trans:{days:20,ml:100}, winter:{days:28,ml:70} },
+    light:'Χαμηλό-μέτριο', note:'Αποθηκεύει νερό στις ρίζες' },
+  { id:'cactus',      gr:'Κάκτος',           en:'Cactaceae spp.',            diff:'Πολύ εύκολο',
+    seasons:{ summer:{days:14,ml:100}, trans:{days:25,ml:60}, winter:{days:40,ml:30} },
+    light:'Άμεσος ήλιος', note:'Το χειμώνα σχεδόν καθόλου νερό' },
+  { id:'dracaena',    gr:'Δρακένα',          en:'Dracaena marginata',        diff:'Εύκολο',
+    seasons:{ summer:{days:6,ml:160}, trans:{days:10,ml:130}, winter:{days:14,ml:90} },
+    light:'Μέτριο φως', note:'Ευαίσθητη στο φθόριο νερού βρύσης' },
+  { id:'fern',        gr:'Φτέρη',            en:'Nephrolepis exaltata',      diff:'Απαιτητικό',
+    seasons:{ summer:{days:2,ml:200}, trans:{days:4,ml:180}, winter:{days:6,ml:150} },
+    light:'Έμμεσο φως', note:'Χρειάζεται υψηλή υγρασία' },
+  { id:'rubber',      gr:'Ελαστικόδεντρο',   en:'Ficus elastica',            diff:'Εύκολο',
+    seasons:{ summer:{days:6,ml:180}, trans:{days:10,ml:140}, winter:{days:14,ml:100} },
+    light:'Έντονο έμμεσο', note:'Σκουπίζε τα φύλλα τακτικά' },
+  { id:'calathea',    gr:'Καλαθέα',          en:'Calathea spp.',             diff:'Απαιτητικό',
+    seasons:{ summer:{days:3,ml:150}, trans:{days:5,ml:120}, winter:{days:7,ml:90} },
+    light:'Έμμεσο χαμηλό', note:'Προτιμά αποσταγμένο νερό' },
+  { id:'jade',        gr:'Γιέιντ',           en:'Crassula ovata',            diff:'Εύκολο',
+    seasons:{ summer:{days:10,ml:120}, trans:{days:18,ml:90}, winter:{days:28,ml:60} },
+    light:'Πολύ φωτεινό', note:'Χυμώδες, ανθεκτικό' },
+  { id:'croton',      gr:'Κρότον',           en:'Codiaeum variegatum',       diff:'Μέτριο',
+    seasons:{ summer:{days:4,ml:170}, trans:{days:7,ml:140}, winter:{days:10,ml:100} },
+    light:'Πολύ φωτεινό', note:'Πέφτει φύλλα με αλλαγές φωτισμού' },
+  { id:'anthurium',   gr:'Ανθούριο',         en:'Anthurium andraeanum',      diff:'Μέτριο',
+    seasons:{ summer:{days:5,ml:160}, trans:{days:8,ml:130}, winter:{days:12,ml:90} },
+    light:'Έμμεσο φωτεινό', note:'Τα φύλλα κίτρινα = υπερβολικό πότισμα' },
+  { id:'yucca',       gr:'Γιούκα',           en:'Yucca elephantipes',        diff:'Εύκολο',
+    seasons:{ summer:{days:8,ml:200}, trans:{days:14,ml:150}, winter:{days:21,ml:100} },
+    light:'Πολύ φωτεινό', note:'Ανθεκτική στην ξηρασία' },
+  { id:'ivy',         gr:'Κισσός',           en:'Hedera helix',              diff:'Εύκολο',
+    seasons:{ summer:{days:4,ml:140}, trans:{days:7,ml:110}, winter:{days:10,ml:80} },
+    light:'Μέτριο φως', note:'Αγαπά κρύα παράθυρα' },
+  { id:'aglaonema',   gr:'Αγλαόνημα',        en:'Aglaonema commutatum',      diff:'Εύκολο',
+    seasons:{ summer:{days:5,ml:150}, trans:{days:9,ml:120}, winter:{days:14,ml:80} },
+    light:'Χαμηλό φως', note:'Ιδανικό για σκοτεινούς χώρους' },
+  { id:'palm',        gr:'Φοινικιά',         en:'Chamaedorea elegans',       diff:'Μέτριο',
+    seasons:{ summer:{days:4,ml:200}, trans:{days:7,ml:160}, winter:{days:10,ml:120} },
+    light:'Έμμεσο φωτεινό', note:'Μην αφήσεις το χώμα να στεγνώσει' },
+  { id:'strelitzia',  gr:'Στρελίτσια',       en:'Strelitzia reginae',        diff:'Μέτριο',
+    seasons:{ summer:{days:5,ml:250}, trans:{days:9,ml:200}, winter:{days:14,ml:120} },
+    light:'Άμεσος ήλιος', note:'Θέλει χώρο για τις ρίζες' },
+  { id:'begonia',     gr:'Βεγκόνια',         en:'Begonia spp.',              diff:'Μέτριο',
+    seasons:{ summer:{days:4,ml:150}, trans:{days:7,ml:120}, winter:{days:12,ml:80} },
+    light:'Έμμεσο φωτεινό', note:'Ποτίζουμε από κάτω αν είναι δυνατόν' },
+  { id:'cyclamen',    gr:'Κυκλάμινο',        en:'Cyclamen persicum',         diff:'Μέτριο',
+    seasons:{ summer:{days:14,ml:50}, trans:{days:7,ml:120}, winter:{days:5,ml:140} },
+    light:'Δροσερό φωτεινό', note:'Ανθίζει χειμώνα, ξεκουράζεται καλοκαίρι' },
+  { id:'dieffenbachia',gr:'Διεφενμπάχια',   en:'Dieffenbachia seguine',     diff:'Εύκολο',
+    seasons:{ summer:{days:5,ml:180}, trans:{days:9,ml:150}, winter:{days:13,ml:100} },
+    light:'Μέτριο φως', note:'Τοξικό για κατοικίδια' },
+  { id:'schefflera',  gr:'Σέφλερα',          en:'Schefflera arboricola',     diff:'Εύκολο',
+    seasons:{ summer:{days:6,ml:180}, trans:{days:10,ml:150}, winter:{days:14,ml:100} },
+    light:'Φωτεινό έμμεσο', note:'Ανεκτική στις συνθήκες γραφείου' },
+  { id:'hoya',        gr:'Χόγια',            en:'Hoya carnosa',              diff:'Εύκολο',
+    seasons:{ summer:{days:7,ml:130}, trans:{days:12,ml:100}, winter:{days:20,ml:70} },
+    light:'Φωτεινό έμμεσο', note:'Αφήνουμε να στεγνώσει μεταξύ ποτισμάτων' },
+  { id:'tradescantia', gr:'Τραντεσκάντια',  en:'Tradescantia zebrina',      diff:'Πολύ εύκολο',
+    seasons:{ summer:{days:3,ml:130}, trans:{days:5,ml:100}, winter:{days:8,ml:80} },
+    light:'Φωτεινό έμμεσο', note:'Κρεμαστό, αναπτύσσεται γρήγορα' },
+  { id:'succulent',   gr:'Παχύφυτο',        en:'Echeveria / Sedum spp.',    diff:'Πολύ εύκολο',
+    seasons:{ summer:{days:12,ml:80}, trans:{days:20,ml:60}, winter:{days:35,ml:40} },
+    light:'Άμεσος ήλιος', note:'Το πολύ νερό τα σκοτώνει' },
+  { id:'peperomia',   gr:'Πεπερόμια',       en:'Peperomia obtusifolia',     diff:'Εύκολο',
+    seasons:{ summer:{days:7,ml:120}, trans:{days:12,ml:100}, winter:{days:18,ml:70} },
+    light:'Μέτριο φως', note:'Μικρό, ιδανικό για γραφεία' },
+  { id:'bromeliad',   gr:'Βρομέλια',        en:'Bromeliad spp.',            diff:'Μέτριο',
+    seasons:{ summer:{days:6,ml:100}, trans:{days:10,ml:80}, winter:{days:16,ml:60} },
+    light:'Φωτεινό έμμεσο', note:'Ποτίζουμε στην κεντρική κούπα' },
+  { id:'philodendron',gr:'Φιλόδεντρο',      en:'Philodendron hederaceum',   diff:'Εύκολο',
+    seasons:{ summer:{days:5,ml:170}, trans:{days:8,ml:140}, winter:{days:12,ml:100} },
+    light:'Μέτριο φως', note:'Παρόμοιο με πόθος στις ανάγκες' },
+  { id:'christmas_cactus',gr:'Χριστουγεννιάτικος Κάκτος',en:'Schlumbergera bridgesii',diff:'Μέτριο',
+    seasons:{ summer:{days:10,ml:100}, trans:{days:7,ml:130}, winter:{days:5,ml:150} },
+    light:'Έμμεσο φωτεινό', note:'Περισσότερο νερό πριν/κατά την ανθοφορία' },
+  { id:'geranium',    gr:'Γεράνι',          en:'Pelargonium spp.',          diff:'Εύκολο',
+    seasons:{ summer:{days:3,ml:200}, trans:{days:6,ml:150}, winter:{days:10,ml:80} },
+    light:'Πολύ φωτεινό', note:'Ελληνικό μπαλκόνι κλασικό!' },
+  { id:'lavender',    gr:'Λεβάντα',         en:'Lavandula angustifolia',    diff:'Μέτριο',
+    seasons:{ summer:{days:5,ml:150}, trans:{days:9,ml:120}, winter:{days:15,ml:70} },
+    light:'Άμεσος ήλιος', note:'Μισεί το στάσιμο νερό στις ρίζες' },
+  { id:'jasmine',     gr:'Γιασεμί',         en:'Jasminum polyanthum',       diff:'Μέτριο',
+    seasons:{ summer:{days:3,ml:180}, trans:{days:6,ml:150}, winter:{days:10,ml:100} },
+    light:'Πολύ φωτεινό', note:'Άρωμα το βράδυ — ιδανικό για μπαλκόνι' }
+];
+
+// ═══════════════════════════════════════════
+// SEASON LOGIC — Greece
+// ═══════════════════════════════════════════
+function getGreekSeason(date) {
+  const m = date.getMonth() + 1;
+  if (m >= 5 && m <= 9)  return { key:'summer', label:'Καλοκαίρι', dot:'#7CB87A' };
+  if (m === 10)           return { key:'trans',  label:'Φθινόπωρο', dot:'#C4A882' };
+  if (m === 3 || m === 4) return { key:'trans',  label:'Άνοιξη',    dot:'#A8D4A0' };
+  return                         { key:'winter', label:'Χειμώνας',  dot:'#8EB0CC' };
+}
+
+// ═══════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════
+let HH_CODE     = null;
+let currentUser = 'Βασίλης';
+let appState    = { myPlants: [], waterings: {} }; // waterings: { plant_id: [{date, by}] }
+
+const TODAY  = new Date();
+TODAY.setHours(0,0,0,0);
+const SEASON = getGreekSeason(TODAY);
+
+// ═══════════════════════════════════════════
+// SUPABASE OPERATIONS
+// ═══════════════════════════════════════════
+async function loadFromSupabase() {
+  showLoading(true);
+  try {
+    const [plants, waterings] = await Promise.all([
+      sbFetch(`household_plants?household=eq.${encodeURIComponent(HH_CODE)}&select=plant_id`, { prefer: 'return=representation' }),
+      sbFetch(`waterings?household=eq.${encodeURIComponent(HH_CODE)}&select=plant_id,watered_at,watered_by&order=watered_at.desc`, { prefer: 'return=representation' })
+    ]);
+
+    appState.myPlants = plants.map(r => r.plant_id);
+
+    // Build waterings map: { plant_id: [{date:'YYYY-MM-DD', by:'name'}] }
+    appState.waterings = {};
+    waterings.forEach(r => {
+      if (!appState.waterings[r.plant_id]) appState.waterings[r.plant_id] = [];
+      appState.waterings[r.plant_id].push({ date: r.watered_at, by: r.watered_by });
+    });
+
+    renderAll();
+  } catch(e) {
+    showToast('Σφάλμα σύνδεσης με τη βάση δεδομένων', 'error');
+    console.error(e);
+  } finally {
+    showLoading(false);
+  }
+}
+
+async function addPlantDB(plantId) {
+  try {
+    await sbFetch('household_plants', {
+      method: 'POST',
+      prefer: 'return=minimal',
+      body: JSON.stringify({ household: HH_CODE, plant_id: plantId })
+    });
+    appState.myPlants.push(plantId);
+    renderAll();
+    const p = PLANTS_DB.find(x => x.id === plantId);
+    showToast(`${p.gr} προστέθηκε 🌿`, 'success');
+  } catch(e) {
+    showToast('Σφάλμα προσθήκης φυτού', 'error');
+  }
+}
+
+async function removePlantDB(plantId) {
+  const card = document.querySelector(`[data-plant="${plantId}"]`);
+  if (card) card.classList.add('saving');
+  try {
+    await sbFetch(`household_plants?household=eq.${encodeURIComponent(HH_CODE)}&plant_id=eq.${plantId}`, {
+      method: 'DELETE', prefer: 'return=minimal'
+    });
+    appState.myPlants = appState.myPlants.filter(id => id !== plantId);
+    renderAll();
+  } catch(e) {
+    showToast('Σφάλμα αφαίρεσης φυτού', 'error');
+    if (card) card.classList.remove('saving');
+  }
+}
+
+async function waterPlantDB(plantId) {
+  const card = document.querySelector(`[data-plant="${plantId}"]`);
+  if (card) card.classList.add('saving');
+  const todayStr = TODAY.toISOString().split('T')[0];
+  try {
+    await sbFetch('waterings', {
+      method: 'POST',
+      prefer: 'return=minimal',
+      body: JSON.stringify({
+        household:  HH_CODE,
+        plant_id:   plantId,
+        watered_at: todayStr,
+        watered_by: currentUser
+      })
+    });
+    if (!appState.waterings[plantId]) appState.waterings[plantId] = [];
+    // Remove existing today entry if any, then add new
+    appState.waterings[plantId] = appState.waterings[plantId].filter(w => w.date !== todayStr);
+    appState.waterings[plantId].unshift({ date: todayStr, by: currentUser });
+    renderAll();
+    const p = PLANTS_DB.find(x => x.id === plantId);
+    showToast(`${p.gr} ποτίστηκε από ${currentUser} 💧`, 'success');
+  } catch(e) {
+    // If conflict (already watered today), still update local state
+    if (e.message && e.message.includes('duplicate')) {
+      if (!appState.waterings[plantId]) appState.waterings[plantId] = [];
+      appState.waterings[plantId] = appState.waterings[plantId].filter(w => w.date !== todayStr);
+      appState.waterings[plantId].unshift({ date: todayStr, by: currentUser });
+      renderAll();
+    } else {
+      showToast('Σφάλμα καταγραφής ποτίσματος', 'error');
+    }
+  } finally {
+    const c2 = document.querySelector(`[data-plant="${plantId}"]`);
+    if (c2) c2.classList.remove('saving');
+  }
+}
+
+// ═══════════════════════════════════════════
+// WATERING LOGIC
+// ═══════════════════════════════════════════
+function getDayLabel(date) {
+  return ['Κυ','Δε','Τρ','Τε','Πε','Πα','Σα'][date.getDay()];
+}
+
+function getStatus(plant) {
+  const rule  = plant.seasons[SEASON.key];
+  const freq  = rule.days;
+  const recs  = (appState.waterings[plant.id] || []);
+  const dates = recs.map(r => new Date(r.date));
+  dates.sort((a,b) => b - a);
+  const last  = dates[0] || null;
+  if (!last) return { status:'overdue', daysSince:null, daysLeft:0 };
+  const diff  = Math.floor((TODAY - last) / 86400000);
+  if (diff === 0)        return { status:'ok',      daysSince:0,    daysLeft:freq };
+  if (diff >= freq)      return { status:'overdue', daysSince:diff, daysLeft:0 };
+  if (diff === freq - 1) return { status:'today',   daysSince:diff, daysLeft:1 };
+  return                        { status:'ok',      daysSince:diff, daysLeft:freq - diff };
+}
+
+function buildStrip(plantId) {
+  const recs = appState.waterings[plantId] || [];
+  const wMap = {};
+  recs.forEach(r => { wMap[r.date] = r.by; });
+  const boxes = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(TODAY);
+    d.setDate(d.getDate() - i);
+    const key = d.toISOString().split('T')[0];
+    boxes.push({ label: getDayLabel(d), date: key, by: wMap[key] || null, today: i === 0 });
+  }
+  return boxes;
+}
+
+function soilCircle(plant) {
+  const rule  = plant.seasons[SEASON.key];
+  const freq  = rule.days;
+  const recs  = (appState.waterings[plant.id] || []);
+  const dates = recs.map(r => new Date(r.date));
+  dates.sort((a,b) => b - a);
+  const last  = dates[0] || null;
+  let pct = 0;
+  if (last) {
+    const diff = Math.floor((TODAY - last) / 86400000);
+    pct = Math.max(0, Math.min(1, 1 - diff / freq));
+  }
+  const r     = 20;
+  const circ  = 2 * Math.PI * r;
+  const dash  = pct * circ;
+  const color = pct > 0.5 ? '#7CB87A' : pct > 0.2 ? '#C4A882' : '#D4654A';
+  return `
+    <svg class="soil-svg" viewBox="0 0 48 48">
+      <circle cx="24" cy="24" r="${r}" fill="none" stroke="#2C3B29" stroke-width="4"/>
+      <circle cx="24" cy="24" r="${r}" fill="none" stroke="${color}" stroke-width="4"
+        stroke-dasharray="${dash.toFixed(1)} ${circ.toFixed(1)}"
+        stroke-linecap="round" transform="rotate(-90 24 24)"/>
+    </svg>
+    <div class="soil-pct">${Math.round(pct*100)}%</div>`;
+}
+
+// ═══════════════════════════════════════════
+// RENDER
+// ═══════════════════════════════════════════
+function renderAll() {
+  renderStats();
+  renderGrid();
+}
+
+function renderStats() {
+  let overdue=0, today=0, ok=0;
+  appState.myPlants.forEach(id => {
+    const p = PLANTS_DB.find(x => x.id === id);
+    if (!p) return;
+    const st = getStatus(p);
+    if (st.status === 'overdue') overdue++;
+    else if (st.status === 'today') today++;
+    else ok++;
+  });
+  document.getElementById('statOverdue').textContent = overdue;
+  document.getElementById('statToday').textContent   = today;
+  document.getElementById('statOk').textContent      = ok;
+}
+
+function renderGrid() {
+  const grid = document.getElementById('plantGrid');
+  if (appState.myPlants.length === 0) {
+    grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1">
+      <div class="e-icon">🌱</div>
+      <p>Δεν έχεις προσθέσει ακόμα φυτά.<br>Πάτησε <strong>+ Προσθήκη</strong> για να ξεκινήσεις.</p>
+    </div>`;
+    return;
+  }
+
+  const sorted = [...appState.myPlants].sort((a,b) => {
+    const pa = PLANTS_DB.find(x=>x.id===a);
+    const pb = PLANTS_DB.find(x=>x.id===b);
+    if (!pa || !pb) return 0;
+    const order = {overdue:0, today:1, ok:2};
+    return order[getStatus(pa).status] - order[getStatus(pb).status];
+  });
+
+  grid.innerHTML = sorted.map(id => {
+    const p = PLANTS_DB.find(x => x.id === id);
+    if (!p) return '';
+    const st      = getStatus(p);
+    const strip   = buildStrip(p.id);
+    const rule    = p.seasons[SEASON.key];
+
+    const chipClass = st.status === 'overdue' ? 'chip-overdue' : st.status === 'today' ? 'chip-today' : 'chip-ok';
+    const chipLabel = st.status === 'overdue'
+      ? (st.daysSince ? `${st.daysSince} μέρες καθυστέρηση` : 'Δεν έχει ποτιστεί')
+      : st.status === 'today' ? 'Πότισμα σήμερα' : `${st.daysLeft} μέρες ακόμα`;
+    const cardClass = st.status === 'overdue' ? 'overdue' : st.status === 'today' ? 'due-today' : 'ok';
+
+    // Last watered + who
+    const lastRec   = (appState.waterings[p.id]||[])[0] || null;
+    const lastLabel = lastRec
+      ? `${new Date(lastRec.date).toLocaleDateString('el-GR',{day:'numeric',month:'short'})}`
+      : 'Δεν έχει ποτιστεί';
+    const whoHTML = lastRec
+      ? `<span class="who-badge"><span class="who-dot ${lastRec.by==='Βασίλης'?'v':'s'}"></span>${lastRec.by}</span>`
+      : '';
+
+    // Button state
+    const wateredToday = (appState.waterings[p.id]||[]).some(w => w.date === TODAY.toISOString().split('T')[0]);
+    const btnClass = wateredToday ? 'watered-today' : st.status === 'ok' ? 'not-due' : 'needs-water';
+    const btnLabel = wateredToday ? '✓ Ποτίστηκε σήμερα' : st.status === 'ok' ? 'Δεν χρειάζεται ακόμα' : '💧 Πότισμα τώρα';
+
+    const stripHTML = strip.map(b => {
+      const isV = b.by === 'Βασίλης';
+      const isS = b.by && !isV;
+      const cls = b.by ? (isV ? 'watered' : 'watered-by-s') : '';
+      const whoLbl = b.by ? (isV ? 'Β' : 'Σ') : '';
+      return `<div class="day-box ${cls} ${b.today?'today-box':''}">
+        <div class="day-dot"></div>
+        <div class="day-lbl">${b.label}</div>
+        ${b.by ? `<div class="day-who">${whoLbl}</div>` : ''}
+      </div>`;
+    }).join('');
+
+    return `
+    <div class="plant-card ${cardClass}" data-plant="${p.id}">
+      <button class="remove-btn" onclick="removePlantDB('${p.id}')" title="Αφαίρεση">×</button>
+      <div class="card-top">
+        <div class="card-info">
+          <div class="plant-name-gr">${p.gr}</div>
+          <div class="plant-name-en">${p.en}</div>
+        </div>
+        <div class="soil-wrap">${soilCircle(p)}</div>
+      </div>
+      <div class="status-row">
+        <span class="status-chip ${chipClass}">${chipLabel}</span>
+        ${whoHTML}
+        <span class="last-watered">${lastLabel}</span>
+      </div>
+      <div class="watering-info">
+        <div class="winfo-item">
+          <span class="winfo-label">ΣΥΧΝΟΤΗΤΑ</span>
+          <span class="winfo-val">κάθε ${rule.days} μέρες</span>
+        </div>
+        <div class="winfo-item">
+          <span class="winfo-label">ΠΟΣΟΤΗΤΑ</span>
+          <span class="winfo-val">${rule.ml} ml</span>
+        </div>
+        <div class="winfo-item">
+          <span class="winfo-label">ΦΩΤΙΣΜΟΣ</span>
+          <span class="winfo-val" style="font-size:12px">${p.light}</span>
+        </div>
+      </div>
+      <div class="strip-label">ΤΕΛΕΥΤΑΙΕΣ 7 ΜΕΡΕΣ</div>
+      <div class="day-strip">${stripHTML}</div>
+      <button class="water-btn ${btnClass}"
+        onclick="${btnClass==='needs-water'?`waterPlantDB('${p.id}')`:''}">${btnLabel}</button>
+    </div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════
+// MODAL
+// ═══════════════════════════════════════════
+function openModal() {
+  document.getElementById('modalOverlay').classList.remove('hidden');
+  document.getElementById('searchInput').value = '';
+  filterPlants();
+}
+function closeModal() {
+  document.getElementById('modalOverlay').classList.add('hidden');
+}
+function filterPlants() {
+  const q    = document.getElementById('searchInput').value.toLowerCase();
+  const list = document.getElementById('plantListModal');
+  const filtered = PLANTS_DB.filter(p =>
+    p.gr.toLowerCase().includes(q) || p.en.toLowerCase().includes(q)
+  );
+  list.innerHTML = filtered.map(p => {
+    const added = appState.myPlants.includes(p.id);
+    return `<div class="plant-option ${added?'already-added':''}"
+      onclick="addPlantDB('${p.id}');closeModal()">
+      <div>
+        <div class="po-name-gr">${p.gr}</div>
+        <div class="po-name-en">${p.en}</div>
+      </div>
+      <span class="po-tag">${p.diff}</span>
+    </div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════
+// HOUSEHOLD CODE
+// ═══════════════════════════════════════════
+function enterHousehold() {
+  const v = document.getElementById('hhInput').value.trim().toUpperCase();
+  const errEl = document.getElementById('hhError');
+  if (!v || v.length < 3) {
+    errEl.textContent = 'Ο κωδικός πρέπει να έχει τουλάχιστον 3 χαρακτήρες';
+    document.getElementById('hhInput').style.borderColor = 'var(--red)';
+    return;
+  }
+  errEl.textContent = '';
+  HH_CODE = v;
+  localStorage.setItem('plantcare_hh', HH_CODE);
+  document.getElementById('hhScreen').classList.add('hidden');
+  initApp();
+}
+
+function changeHousehold() {
+  localStorage.removeItem('plantcare_hh');
+  HH_CODE = null;
+  appState = { myPlants: [], waterings: {} };
+  document.getElementById('hhScreen').classList.remove('hidden');
+  document.getElementById('hhInput').value = '';
+}
+
+document.getElementById('hhInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') enterHousehold();
+});
+
+// ═══════════════════════════════════════════
+// USER
+// ═══════════════════════════════════════════
+function setUser(u) {
+  currentUser = u;
+  localStorage.setItem('plantcare_user', u);
+  document.getElementById('btnVasilis').classList.toggle('active', u === 'Βασίλης');
+  document.getElementById('btnSyzyg').classList.toggle('active', u !== 'Βασίλης');
+}
+
+// ═══════════════════════════════════════════
+// UI HELPERS
+// ═══════════════════════════════════════════
+function showLoading(v) {
+  document.getElementById('loadingOverlay').classList.toggle('hidden', !v);
+}
+
+let toastTimer;
+function showToast(msg, type='') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = `toast ${type} show`;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.classList.remove('show'); }, 2800);
+}
+
+// ═══════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════
+function initApp() {
+  // Season
+  document.getElementById('seasonLabel').textContent = SEASON.label;
+  document.getElementById('seasonDot').style.background = SEASON.dot;
+
+  // Date
+  document.getElementById('dateLabel').textContent =
+    TODAY.toLocaleDateString('el-GR', { weekday:'long', day:'numeric', month:'long' });
+
+  // HH label
+  document.getElementById('hhLabel').textContent = `🏠 ${HH_CODE}`;
+
+  // Restore user preference
+  const savedUser = localStorage.getItem('plantcare_user');
+  if (savedUser) setUser(savedUser);
+
+  loadFromSupabase();
+}
+
+// Auto-login if saved
+const savedHH = localStorage.getItem('plantcare_hh');
+if (savedHH) {
+  HH_CODE = savedHH;
+  document.getElementById('hhScreen').classList.add('hidden');
+  initApp();
+} else {
+  showLoading(false);
+}
+</script>
+</body>
+</html>
