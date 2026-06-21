@@ -1,0 +1,156 @@
+name: Daily Plant Watering Check
+
+on:
+  schedule:
+    - cron: '0 6 * * *'
+  workflow_dispatch: {}
+
+jobs:
+  check-and-notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check overdue plants and send email
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          NOTIFY_EMAIL: ${{ secrets.NOTIFY_EMAIL }}
+          HOUSEHOLD_CODE: ${{ secrets.HOUSEHOLD_CODE }}
+        run: |
+          cat << 'PYEOF' > check.py
+          import os
+          import json
+          import urllib.request
+          from datetime import date
+
+          SUPABASE_URL = os.environ['SUPABASE_URL']
+          SUPABASE_KEY = os.environ['SUPABASE_KEY']
+          RESEND_API_KEY = os.environ['RESEND_API_KEY']
+          NOTIFY_EMAIL = os.environ['NOTIFY_EMAIL']
+          HOUSEHOLD = os.environ['HOUSEHOLD_CODE']
+
+          PLANT_FREQ = {
+            "pothos":4,"monstera":5,"sanseveria":10,"ficus":5,"spathiphyllum":4,
+            "aloe":12,"orchid":6,"zz":12,"cactus":14,"dracaena":6,"fern":2,
+            "rubber":6,"calathea":3,"jade":10,"croton":4,"anthurium":5,"yucca":8,
+            "ivy":4,"aglaonema":5,"palm":4,"strelitzia":5,"begonia":4,"cyclamen":14,
+            "dieffenbachia":5,"schefflera":6,"hoya":7,"tradescantia":3,"succulent":12,
+            "peperomia":7,"bromeliad":6,"philodendron":5,"christmas_cactus":10,
+            "geranium":3,"lavender":5,"jasmine":3,
+            "petunia":2,"bougainvillea":4,"pelargonium_balc":3,"dipladenia":3,
+            "portulaca":3,"surfinia":2,"catharanthus":3,"lantana":4,"plumbago":4,
+            "hibiscus":3,"oleander":5,"million_bells":2,"agapanthus":5,
+            "basil":2,"mint":2,"rosemary":6,"thyme":7,"oregano":6,"parsley":3,
+            "sage":6,"chives":3,"lemon_verbena":4,
+            "bonsai_ficus":3,"bonsai_juniper":3,"bonsai_carmona":2,"bonsai_zelkova":3,
+            "olive":7,"lemon":5,"orange":5,"rose":3,"gardenia":3,"wisteria":5,
+            "benjamin":5,"cypress":10,"pittosporum":6
+          }
+          PLANT_NAMES_GR = {
+            "pothos":"Πόθος","monstera":"Μονστέρα","sanseveria":"Σανσεβέρια","ficus":"Φίκος",
+            "spathiphyllum":"Σπαθίφυλλο","aloe":"Αλόη","orchid":"Ορχιδέα","zz":"ZZ Plant",
+            "cactus":"Κάκτος","dracaena":"Δρακένα","fern":"Φτέρη","rubber":"Ελαστικόδεντρο",
+            "calathea":"Καλαθέα","jade":"Γιέιντ","croton":"Κρότον","anthurium":"Ανθούριο",
+            "yucca":"Γιούκα","ivy":"Κισσός","aglaonema":"Αγλαόνημα","palm":"Φοινικιά",
+            "strelitzia":"Στρελίτσια","begonia":"Βεγκόνια","cyclamen":"Κυκλάμινο",
+            "dieffenbachia":"Διεφενμπάχια","schefflera":"Σέφλερα","hoya":"Χόγια",
+            "tradescantia":"Τραντεσκάντια","succulent":"Παχύφυτο","peperomia":"Πεπερόμια",
+            "bromeliad":"Βρομέλια","philodendron":"Φιλόδεντρο",
+            "christmas_cactus":"Χριστουγεννιάτικος Κάκτος","geranium":"Γεράνι",
+            "lavender":"Λεβάντα","jasmine":"Γιασεμί","petunia":"Πετούνια",
+            "bougainvillea":"Βουκαμβίλια","pelargonium_balc":"Γεράνι Κρεμαστό",
+            "dipladenia":"Διπλαδένια","portulaca":"Πορτουλάκα","surfinia":"Σερφίνια",
+            "catharanthus":"Βίνκα","lantana":"Λαντάνα","plumbago":"Πλουμπάγκο",
+            "hibiscus":"Ιβίσκος","oleander":"Πικροδάφνη","million_bells":"Καλιμπράκοα",
+            "agapanthus":"Αγάπανθος","basil":"Βασιλικός","mint":"Δυόσμος",
+            "rosemary":"Δεντρολίβανο","thyme":"Θυμάρι","oregano":"Ρίγανη",
+            "parsley":"Μαϊντανός","sage":"Φασκόμηλο","chives":"Σχοινόπρασο",
+            "lemon_verbena":"Λουΐζα","bonsai_ficus":"Μπονσάι Φίκος",
+            "bonsai_juniper":"Μπονσάι Άρκευθος","bonsai_carmona":"Μπονσάι Καρμόνα",
+            "bonsai_zelkova":"Μπονσάι Ζέλκοβα","olive":"Ελιά","lemon":"Λεμονιά",
+            "orange":"Πορτοκαλιά","rose":"Τριανταφυλλιά","gardenia":"Γαρδένια",
+            "wisteria":"Γλυκίνη","benjamin":"Φίκος Μπεντζαμίν","cypress":"Κυπαρίσσι",
+            "pittosporum":"Πιττόσπορο"
+          }
+
+          def get_season_key(d):
+              m = d.month
+              if 5 <= m <= 9: return "summer"
+              if m == 10 or m in (3,4): return "trans"
+              return "winter"
+
+          def sb_get(path):
+              req = urllib.request.Request(
+                  f"{SUPABASE_URL}/rest/v1/{path}",
+                  headers={
+                      "apikey": SUPABASE_KEY,
+                      "Authorization": f"Bearer {SUPABASE_KEY}"
+                  }
+              )
+              with urllib.request.urlopen(req) as res:
+                  return json.loads(res.read().decode())
+
+          today = date.today()
+          season = get_season_key(today)
+
+          plants = sb_get(f"household_plants?household=eq.{HOUSEHOLD}&select=plant_id")
+          waterings = sb_get(f"waterings?household=eq.{HOUSEHOLD}&select=plant_id,watered_at&order=watered_at.desc")
+
+          last_watered = {}
+          for w in waterings:
+              pid = w["plant_id"]
+              if pid not in last_watered:
+                  last_watered[pid] = w["watered_at"]
+
+          overdue = []
+          for p in plants:
+              pid = p["plant_id"]
+              days_freq = PLANT_FREQ.get(pid, 7)
+              last = last_watered.get(pid)
+              if last is None:
+                  overdue.append((pid, None))
+                  continue
+              last_date = date.fromisoformat(last)
+              days_since = (today - last_date).days
+              if days_since >= days_freq:
+                  overdue.append((pid, days_since))
+
+          if not overdue:
+              print("No overdue plants. No email sent.")
+              exit(0)
+
+          lines = []
+          for pid, days in overdue:
+              name = PLANT_NAMES_GR.get(pid, pid)
+              if days is None:
+                  lines.append(f"<li><strong>{name}</strong> — δεν έχει ποτιστεί ποτέ</li>")
+              else:
+                  lines.append(f"<li><strong>{name}</strong> — {days} μέρες καθυστέρηση</li>")
+
+          html_body = f"""
+          <h2>🌿 Πότισμα φυτών — Καθυστερημένα</h2>
+          <p>Τα παρακάτω φυτά χρειάζονται πότισμα:</p>
+          <ul>{''.join(lines)}</ul>
+          <p><a href="https://eivalr.github.io/plantcare">Άνοιξε το PlantCare</a></p>
+          """
+
+          payload = json.dumps({
+              "from": "PlantCare <onboarding@resend.dev>",
+              "to": [NOTIFY_EMAIL],
+              "subject": f"🌿 {len(overdue)} φυτά χρειάζονται πότισμα",
+              "html": html_body
+          }).encode()
+
+          req = urllib.request.Request(
+              "https://api.resend.com/emails",
+              data=payload,
+              headers={
+                  "Authorization": f"Bearer {RESEND_API_KEY}",
+                  "Content-Type": "application/json"
+              },
+              method="POST"
+          )
+          with urllib.request.urlopen(req) as res:
+              print("Email sent:", res.read().decode())
+          PYEOF
+          python3 check.py
