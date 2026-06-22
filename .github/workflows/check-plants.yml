@@ -150,7 +150,11 @@ jobs:
               },
               method="POST"
           )
-          with urllib.request.urlopen(req) as res:
-              print("Email sent:", res.read().decode())
+          try:
+              with urllib.request.urlopen(req) as res:
+                  print("Email sent:", res.read().decode())
+          except urllib.error.HTTPError as e:
+              print("RESEND ERROR BODY:", e.read().decode())
+              raise
           PYEOF
           python3 check.py
