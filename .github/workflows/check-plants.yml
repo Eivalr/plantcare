@@ -29,6 +29,10 @@ jobs:
           NOTIFY_EMAIL = os.environ['NOTIFY_EMAIL']
           HOUSEHOLD = os.environ['HOUSEHOLD_CODE']
 
+          COMMON_HEADERS = {
+              "User-Agent": "Mozilla/5.0 (compatible; PlantCareBot/1.0; +https://eivalr.github.io/plantcare)"
+          }
+
           PLANT_FREQ = {
             "pothos":4,"monstera":5,"sanseveria":10,"ficus":5,"spathiphyllum":4,
             "aloe":12,"orchid":6,"zz":12,"cactus":14,"dracaena":6,"fern":2,
@@ -84,7 +88,8 @@ jobs:
                   f"{SUPABASE_URL}/rest/v1/{path}",
                   headers={
                       "apikey": SUPABASE_KEY,
-                      "Authorization": f"Bearer {SUPABASE_KEY}"
+                      "Authorization": f"Bearer {SUPABASE_KEY}",
+                      **COMMON_HEADERS
                   }
               )
               with urllib.request.urlopen(req) as res:
@@ -146,7 +151,8 @@ jobs:
               data=payload,
               headers={
                   "Authorization": f"Bearer {RESEND_API_KEY}",
-                  "Content-Type": "application/json"
+                  "Content-Type": "application/json",
+                  **COMMON_HEADERS
               },
               method="POST"
           )
