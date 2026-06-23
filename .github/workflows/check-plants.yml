@@ -2,8 +2,9 @@ name: Daily Plant Watering Check
 
 on:
   schedule:
-    - cron: '0 8 * * *' 
-  workflow_dispatch: {}
+    # 08:00 UTC = 11:00 Greece (EEST, summer) / 10:00 Greece (EET, winter)
+    - cron: '0 8 * * *'
+  workflow_dispatch: {}   # allows manual trigger from GitHub Actions tab for testing
 
 jobs:
   check-and-notify:
@@ -21,7 +22,7 @@ jobs:
           import os
           import json
           import urllib.request
-          from datetime import date
+          from datetime import datetime, timezone, timedelta
 
           SUPABASE_URL = os.environ['SUPABASE_URL']
           SUPABASE_KEY = os.environ['SUPABASE_KEY']
@@ -29,10 +30,19 @@ jobs:
           NOTIFY_EMAIL = os.environ['NOTIFY_EMAIL']
           HOUSEHOLD = os.environ['HOUSEHOLD_CODE']
 
-          COMMON_HEADERS = {
-              "User-Agent": "Mozilla/5.0 (compatible; PlantCareBot/1.0; +https://eivalr.github.io/plantcare)"
-          }
+          # GitHub Actions runners use UTC. The app runs in the browser using
+          # Greece local time. To match "today" consistently with the app,
+          # compute "today" using Greece civil time (UTC+3 in summer, UTC+2 in winter).
+          # Simple approach: use UTC+3 offset (covers summer correctly; in winter
+          # this may be ~1hr off near midnight, which is an acceptable edge case
+          # given the workflow runs at 11:00 Greece time, far from midnight).
+          GREECE_OFFSET_HOURS = 3
+          now_utc = datetime.now(timezone.utc)
+          now_greece = now_utc + timedelta(hours=GREECE_OFFSET_HOURS)
+          today = now_greece.date()
 
+          # ── Plant frequency data (must mirror app's PLANTS_DB seasons) ──
+          # Format: id -> {summer, trans, winter} days-between-watering
           PLANT_FREQ = {
             "pothos":4,"monstera":5,"sanseveria":10,"ficus":5,"spathiphyllum":4,
             "aloe":12,"orchid":6,"zz":12,"cactus":14,"dracaena":6,"fern":2,
@@ -83,6 +93,10 @@ jobs:
               if m == 10 or m in (3,4): return "trans"
               return "winter"
 
+          COMMON_HEADERS = {
+              "User-Agent": "Mozilla/5.0 (compatible; PlantCareBot/1.0; +https://eivalr.github.io/plantcare)"
+          }
+
           def sb_get(path):
               req = urllib.request.Request(
                   f"{SUPABASE_URL}/rest/v1/{path}",
@@ -95,7 +109,6 @@ jobs:
               with urllib.request.urlopen(req) as res:
                   return json.loads(res.read().decode())
 
-          today = date.today()
           season = get_season_key(today)
 
           plants = sb_get(f"household_plants?household=eq.{HOUSEHOLD}&select=plant_id")
@@ -115,8 +128,10 @@ jobs:
               if last is None:
                   overdue.append((pid, None))
                   continue
-              last_date = date.fromisoformat(last)
+              last_date = datetime.fromisoformat(last).date()
               days_since = (today - last_date).days
+              # Mirror app's getStatus exactly: only overdue when days_since >= freq.
+              # (days_since == freq - 1 means "due today", not yet overdue.)
               if days_since >= days_freq:
                   overdue.append((pid, days_since))
 
