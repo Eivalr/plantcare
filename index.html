@@ -708,6 +708,16 @@ const TODAY  = new Date();
 TODAY.setHours(0,0,0,0);
 const SEASON = getGreekSeason(TODAY);
 
+// Returns YYYY-MM-DD using LOCAL date components — never use toISOString()
+// for date-only values, since that converts to UTC first and can shift
+// the date by one day depending on the user's timezone and time of day.
+function toDateStr(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 // ═══════════════════════════════════════════
 // SUPABASE OPERATIONS
 // ═══════════════════════════════════════════
@@ -771,7 +781,7 @@ async function removePlantDB(plantId) {
 async function waterPlantDB(plantId) {
   const card = document.querySelector(`[data-plant="${plantId}"]`);
   if (card) card.classList.add('saving');
-  const todayStr = TODAY.toISOString().split('T')[0];
+  const todayStr = toDateStr(TODAY);
   try {
     await sbFetch('waterings', {
       method: 'POST',
@@ -836,7 +846,7 @@ function buildStrip(plantId) {
   for (let i = 6; i >= 0; i--) {
     const d = new Date(TODAY);
     d.setDate(d.getDate() - i);
-    const key = d.toISOString().split('T')[0];
+    const key = toDateStr(d);
     boxes.push({ label: getDayLabel(d), date: key, by: wMap[key] || null, today: i === 0 });
   }
   return boxes;
@@ -932,7 +942,7 @@ function renderGrid() {
       : '';
 
     // Button state
-    const wateredToday = (appState.waterings[p.id]||[]).some(w => w.date === TODAY.toISOString().split('T')[0]);
+    const wateredToday = (appState.waterings[p.id]||[]).some(w => w.date === toDateStr(TODAY));
     const btnClass = wateredToday ? 'watered-today' : st.status === 'ok' ? 'not-due' : 'needs-water';
     const btnLabel = wateredToday ? '✓ Ποτίστηκε σήμερα' : st.status === 'ok' ? 'Δεν χρειάζεται ακόμα' : '💧 Πότισμα τώρα';
 
